@@ -9,14 +9,15 @@ const fs = require('fs');
 const multer = require('multer');
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        return cb(null, './public/images')
-    },
-    filename: function (req, file, cb) {
-       return cb(null, `${Date.now()}-${file.originalname}`)
-    },
+  destination: function (req, file, cb) {
+    cb(null, './public/images');
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
 });
-const upload = multer({ storage: storage});
+
+const upload = multer({ storage: storage }).any();
 
 
 
@@ -33,15 +34,12 @@ router.get('/subcategory', subcategory);
 router.get('/types', types);
 
 
-router.post('/addProduct', upload.fields([
-    { name: 'images', maxCount: 10 },
-    { name: 'variantcover', maxCount: 1 }
-]), addProduct);
+router.post('/addProduct', upload, addProduct);
 router.post('/addcategory', addCategory);
 router.post('/addcurrency', addCurrency);
 router.post('/addsucategory', addSubcategory);
 
-router.put('/updateproduct', updateProduct);
+router.put('/updateproduct', upload, updateProduct);
 router.put('/updatecurrency', updateCurrency);
 router.put('/updatesubcategory', updateSubcategory);
 router.put('/updatevariant', updateVariant);
