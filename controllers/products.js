@@ -8,6 +8,8 @@ const products = async (req, res) => {
     LEFT JOIN jeweltest.variant v on p.product_id = v.product_id
     LEFT JOIN jeweltest.category c on p.cat_id = c.cat_id
     LEFT JOIN jeweltest.productimages pi on v.variant_id = pi.variant_id
+    where p.product_active = 1 and v.variant_active = 1
+    group by p.product_id, v.variant_id
 
     `;
     db.query(query, (err, results) => {
@@ -34,9 +36,9 @@ const productVariants = async (req, res) => {
     if (!id) {
         return res.status(400).send("Product id is required");
     }
-    const query = `SELECT v.*, vc.cover_url FROM jeweltest.variant v
-    LEFT JOIN jeweltest.variantcover vc on v.variant_id = vc.variant_id
-    WHERE v.product_id = ?`;
+    const query = `SELECT v.*, pi.image_url FROM jeweltest.variant v
+    LEFT JOIN jeweltest.productimages pi on v.variant_id = pi.variant_id
+    WHERE v.product_id = ? And v.variant_active = 1`;
     db.query(query, [id], (err, results) => {
         if (err) {
             console.log(err);
@@ -379,7 +381,10 @@ const deleteProduct = async (req, res) => {
     if (!id) {
         return res.status(400).send("Product id is required");
     }
-    const query = `DELETE FROM jeweltest.product WHERE product_id = ?`;
+    const query = `UPDATE jeweltest.product p
+             LEFT JOIN jeweltest.variant v ON p.product_id = v.product_id
+             SET p.product_active = 0, v.variant_active = 0
+             WHERE p.product_id = ?`;
     db.query(query, [id], (err, results) => {
         if (err) {
             console.log(err);
@@ -422,7 +427,7 @@ const deleteVariant = async (req, res) => {
     if (!id) {
         return res.status(400).send("Variant id is required");
     }
-    const query = `DELETE FROM jeweltest.variant WHERE variant_id = ?`;
+    const query = ` UPDATE jeweltest.variant SET variant_active = 0 WHERE variant_id = ?`;
     db.query(query, [id], (err, results) => {
         if (err) {
             console.log(err);

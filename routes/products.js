@@ -4,7 +4,6 @@ const { products, productVariants, addProduct, updateProduct, deleteProduct, upd
 const { categories, addCategory, deleteCategory, subcategory, addSubcategory, updateSubcategory, deleteSubcategory, types } = require('../controllers/categories');
 const { currency, addCurrency, updateCurrency, deleteCurrency } = require('../controllers/currency');
 
-
 const fs = require('fs');
 const multer = require('multer');
 
@@ -18,6 +17,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage }).any();
+
 
 
 

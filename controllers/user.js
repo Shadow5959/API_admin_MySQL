@@ -3,64 +3,98 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 
+
 const register = async (req, res) => {
-    const { name, email, password, cpassword, phone: number, address } = req.body;
+    const { name, email, password, cpassword, phone: number,gender } = req.body;
     console.log(req.body);
     const phone = parseInt(number);
-    console.log(`received data name: ${name}, email: ${email}, password: ${password}, cpassword: ${cpassword}, phone: ${phone}, address: ${address}`);
-
-    if (!name || !password || !cpassword || !email || !phone) {
-        return res.status(400).send("Name, password, confirm password, email, and phone are required");
+    console.log(`received data name: ${name}, email: ${email}, password: ${password}, cpassword: ${cpassword}, phone: ${phone}, gender: ${gender}`);
+  
+    if (!name || !password || !cpassword || !email || !phone || !gender) {
+      return res.status(400).send("Name, password, confirm password, email, gender, and phone are required");
     }
-
+  
     if (password !== cpassword) {
-        return res.status(400).send("Passwords do not match");
+      return res.status(400).send("Passwords do not match");
     }
-
+  
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        return res.status(400).send("Invalid email format");
+      return res.status(400).send("Invalid email format");
     }
-
+  
     if (isNaN(phone) || phone.toString().length < 10) {
-        return res.status(400).send("Invalid phone number");
+      return res.status(400).send("Invalid phone number");
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    db.query('SELECT user_email, user_number FROM jeweltest.users WHERE user_email = ? AND user_number = ?', [email, phone], async (err, results) => {
-        if (err) {
+  
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      // Check if user exists
+      db.query(
+        'SELECT user_email, user_number FROM jeweltest.users WHERE user_email = ? AND user_number = ?',
+        [email, phone],
+        async (err, results) => {
+          if (err) {
             console.log(err);
             return res.status(500).send("Server error");
-        }
-        if (results.length > 0) {
-            const existingUser = results[0];
-            if (existingUser.user_email === email && existingUser.user_number === phone) {
-                return res.status(400).send("User already in use");
-            }
-        }
-        const createdAt = new Date();
-        db.query('INSERT INTO users SET ?', { user_name: name, user_email: email, user_password: hashedPassword, user_number: phone, created_at: createdAt }, (err, results) => {
-            if (err) {
+          }
+          if (results.length > 0) {
+            return res.status(400).send("User already in use");
+          }
+  
+          const createdAt = new Date();
+          // Insert new user record
+          db.query(
+            'INSERT INTO users SET ?',
+            {
+              user_name: name,
+              user_email: email,
+              user_password: hashedPassword,
+              user_number: phone,
+              created_at: createdAt,
+              user_gender: gender
+            },
+            (err, results) => {
+              if (err) {
                 console.log(err);
                 return res.status(500).send("Server error");
-            } else {
-                const userId = results.insertId;
-                if (address) {
-                    db.query('INSERT INTO useraddress SET ?', { user_id: userId, address: address }, (err, results) => {
-                        if (err) {
-                            console.log(err);
-                            return res.status(500).send("Server error");
-                        } else {
-                            return res.status(200).json({ email: email, name: name, phone: phone, address: address });
-                        }
-                    });
-                } else {
-                    return res.status(200).json({ email: email, name: name, phone: phone });
+              }
+              const userId = results.insertId;
+  
+              // Generate token immediately using the new userId
+              const token = jwt.sign(
+                { id: userId },
+                process.env.JWT_SECRET,
+                { expiresIn: process.env.JWT_EXPIRES_IN }
+              );
+              console.log(`The token is: ${token}`);
+              const cookieOptions = {
+                expires: new Date(Date.now() + parseInt(process.env.JWT_COOKIE_EXPIRES) * 24 * 60 * 60 * 1000)
+              };
+              res.cookie('jwt', token, cookieOptions);
+  
+              // Update the user record with the token
+              db.query(
+                'UPDATE users SET user_token = ? WHERE user_id = ?',
+                [token, userId],
+                (err) => {
+                  if (err) {
+                    console.log(err);
+                    // Proceed even if token update fails; token is already generated.
+                  }
+                  // Insert address if provided (optional)
                 }
+              );
             }
-        });
-    });
-};
+          );
+        }
+      );
+    } catch (error) {
+      console.error(error);
+      return res.status(500).send("Server error");
+    }
+  };
+  
 
 const login = async (req, res) => {
     const { email, number, password } = req.body;
@@ -88,17 +122,23 @@ const login = async (req, res) => {
             expires: new Date(Date.now() + parseInt(process.env.JWT_COOKIE_EXPIRES) * 24 * 60 * 60 * 1000)
         };
         res.cookie('jwt', token, cookieOptions);
+        db.query('UPDATE users SET user_token = ? WHERE user_id = ?', [token, user.user_id], (err) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).send("Server error");
+            }
         return res.status(200).json({ token, user });
     });
+});
 };
 
 const addAddress = async (req, res) => {
-    const { id, address } = req.body;
-    console.log(`received data id: ${id}, address: ${address}`);
+    const { id, address, city, state, country, pincode } = req.body;
+    console.log(`received data id: ${id}, address: ${address}, city: ${city}, state: ${state}, country: ${country}, pincode: ${pincode}`);
     if (!id || !address) {
         return res.status(400).send("User id and address are required");
     }
-    db.query('INSERT INTO useraddress SET ?', { user_id: id, address: address }, (err, results) => {
+    db.query('INSERT INTO useraddress SET ?', { user_id: id, address: address, city:city, state:state, country:country, pincode:pincode }, (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).send("Server error");
@@ -108,8 +148,8 @@ const addAddress = async (req, res) => {
 };
 
 const userOrder = async (req, res) => {
-    let { id, total_amount, status, currency, variant_id, quantity } = req.body;
-    console.log(`received data id: ${id}, total_amount: ${total_amount}, status: ${status}, currency: ${currency}, variant_id: ${variant_id}, quantity: ${quantity}`);
+    let { id, total_amount, status, currency, variant_id, quantity, address_id } = req.body;
+    console.log(`received data id: ${id}, total_amount: ${total_amount}, address_id: ${address_id}, status: ${status}, currency: ${currency}, variant_id: ${variant_id}, quantity: ${quantity}`);
     if (!id || !total_amount || !status || !currency || !variant_id || !quantity) {
         return res.status(400).send("User id, total amount, status, currency, variant id, and quantity are required");
     }
@@ -122,7 +162,7 @@ const userOrder = async (req, res) => {
             return res.status(404).send("Currency not found");
         }
         const cur_id = currencyResults[0].cur_id;
-        db.query('SELECT price FROM jeweltest.variant WHERE variant_id = ?', [variant_id], (err, variantResults) => {
+        db.query('SELECT price, stock FROM jeweltest.variant WHERE variant_id = ?', [variant_id], (err, variantResults) => {
             if (err) {
                 console.log(err);
                 return res.status(500).send("Server error");
@@ -130,9 +170,13 @@ const userOrder = async (req, res) => {
             if (variantResults.length === 0) {
                 return res.status(404).send("Variant not found");
             }
-            const price = variantResults[0].price;
+            const { price, stock } = variantResults[0];
+            if (stock < quantity) {
+                return res.status(400).send("Insufficient stock");
+            }
             const orderDate = new Date();
-            db.query('INSERT INTO orders SET ?', { user_id: id, total_amount, order_date: orderDate,status, cur_id }, (err, orderResults) => {
+            const totalamount = price * quantity;
+            db.query('INSERT INTO orders SET ?', { user_id: id, totalamount, order_date: orderDate, order_address_id: address_id, status, cur_id }, (err, orderResults) => {
                 if (err) {
                     console.log(err);
                     return res.status(500).send("Server error");
@@ -143,7 +187,13 @@ const userOrder = async (req, res) => {
                         console.log(err);
                         return res.status(500).send("Server error");
                     }
-                    return res.status(200).json({ id, total_amount, status, currency, variant_id, quantity, price });
+                    db.query('UPDATE jeweltest.variant SET stock = stock - ? WHERE variant_id = ?', [quantity, variant_id], (err) => {
+                        if (err) {
+                            console.log(err);
+                            return res.status(500).send("Server error");
+                        }
+                        return res.status(200).json({ id, total_amount, status, currency, variant_id, quantity, price });
+                    });
                 });
             });
         });
@@ -215,7 +265,7 @@ const userOrders = async (req, res) => {
         }
         const user = userResults[0];
         const orderQuery = `
-            SELECT o.order_id, o.order_date, o.total_amount, o.status, c.cur_name
+            SELECT o.order_id, o.order_date, o.total_amount, o.status, o.status_label as status, c.cur_name
             FROM jeweltest.orders o
             LEFT JOIN jeweltest.currency c ON o.cur_id = c.cur_id
             WHERE o.user_id = ?
@@ -225,6 +275,7 @@ const userOrders = async (req, res) => {
                 console.log(err);
                 return res.status(500).send("Server error");
             }
+
             const orderIds = orderResults.map(order => order.order_id);
             if (orderIds.length === 0) {
                 return res.status(200).json({ user, orders: [] });
@@ -251,12 +302,12 @@ const userOrders = async (req, res) => {
 };
 
 const updateAddress = async (req, res) => {
-    const { address_id, id, address } = req.body;
-    console.log(`received data id: ${id}, address: ${address}`);
-    if (!id || !address || !address_id) {
-        return res.status(400).send("User id and address are required");
+    const { address_id, id, address, city, state, country, pincode } = req.body;
+    console.log(`received data id: ${id}, address: ${address}, city: ${city}, state: ${state}, country: ${country}, pincode: ${pincode}`);
+    if (!id || !address || !address_id || !city || !state || !country || !pincode) {
+        return res.status(400).send("User id, city, state, country, pincode, and address are required");
     }
-    db.query('UPDATE useraddress SET address = ? WHERE user_id = ? AND address_id = ? AND address_active = 1', [address, id, address_id], (err, results) => {
+    db.query('UPDATE useraddress SET address = ?, city = ?, state = ?, country = ?, pincode = ? WHERE user_id = ? AND address_id = ? AND address_active = 1', [address, city,state, country, pincode, id, address_id], (err, results) => {
         if (err) {
             console.log(err);
             return res.status(500).send("Server error");
@@ -281,14 +332,17 @@ const deleteAddress = async (req, res) => {
 };
 
 const updateUser = async (req, res) => {
-    const { name, gender } = req.body;
+    const { name, gender,email } = req.body;
     const { id } = req.query;
     console.log(`received data id: ${id}, name: ${name}, gender: ${gender}`);
     if (!id) {
         return res.status(400).send("User id is required");
     }
-
-    const query = 'SELECT user_name, user_gender FROM jeweltest.users WHERE user_id = ?';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).send("Invalid email format");
+    }
+    const query = 'SELECT user_name, user_gender, user_email FROM jeweltest.users WHERE user_id = ?';
     db.query(query, [id], (err, results) => {
         if (err) {
             console.log(err);
@@ -300,9 +354,20 @@ const updateUser = async (req, res) => {
         const user = results[0];
         const updatedName = name || user.user_name;
         const updatedGender = gender || user.user_gender;
+        const updatedEmail = email || user.user_email;
 
-        const updateQuery = 'UPDATE jeweltest.users SET user_name = ?, user_gender = ? WHERE user_id = ?';
-        db.query(updateQuery, [updatedName, updatedGender, id], (err, results) => {
+        db.query('SELECT user_email FROM jeweltest.users WHERE user_email = ?', [updatedEmail], (err, emailResults) => {
+            if (err) {
+                console.log(err);
+                return res.status(500).send("Server error");
+            }
+            if (emailResults.length > 0) {
+                return res.status(400).send("Email already in use");
+            }
+        });
+
+        const updateQuery = 'UPDATE jeweltest.users SET user_name = ?, user_gender = ?, user_email WHERE user_id = ?';
+        db.query(updateQuery, [updatedName, updatedGender, updatedEmail, id], (err) => {
             if (err) {
                 console.log(err);
                 return res.status(500).send("Server error");
@@ -313,27 +378,59 @@ const updateUser = async (req, res) => {
 };
 
 const updateOrder = async (req, res) => {
-    const { id, status } = req.body;
-    console.log(`received data id: ${id}, status: ${status}`);
-    if (!id || !status) {
-        return res.status(400).send("Order id and status are required");
+    const { id, status, order_id } = req.body; // 'id' is the user_id, 'order_id' is the order's primary key
+    console.log(`Received data user_id: ${id}, status: ${status}, order_id: ${order_id}`);
+  
+    if (!id || !status || !order_id) {
+      return res.status(400).send("User id, order id, and status are required");
     }
-    if (!['pending', 'delivered'].includes(status)) {
-        return res.status(400).send("Invalid status");
+    
+    const validStatuses = ['pending', 'packing', 'intransit', 'canceled', 'returned', 'delivered'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).send("Invalid status");
     }
-    const theStatus = status === 'delivered' ? 1 : 0;
-    if (theStatus === 1) {
-        order_completed_date = new Date();
-    } else {
-        order_completed_date = null;
-    }
-    db.query('UPDATE orders SET status = ?, order_completed_date = ? WHERE order_id = ?', [theStatus, order_completed_date, id], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        return res.status(200).json({ id, status });
-    });
-};
+    
+    // Map the status string to a numeric value.
+    const the_Status = status === 'pending' ? 0 :
+                      status === 'packing' ? 1 :
+                      status === 'intransit' ? 2 :
+                      status === 'delivered' ? 3 :
+                      status === 'canceled' ? 4 :
+                      status === 'returned' ? 5 : 0;
+    
+    // Set order_completed_date only if the order is delivered (i.e. numeric value 3)
+    let order_completed_date = (the_Status === 3) ? new Date() : null;
+    const theStatus = (the_Status).toString();
 
+    // First, check whether the order exists for the given user.
+    db.query(
+      'SELECT * FROM orders WHERE order_id = ? AND user_id = ?',
+      [order_id, id],
+      (err, results) => {
+        if (err) {
+          console.log(err);
+          return res.status(500).send("Server error");
+        }
+        if (results.length === 0) {
+          return res.status(404).send("Order not found or not authorized");
+        }
+        
+        // Order exists; update it.
+        db.query(
+          'UPDATE orders SET status = ?, order_completed_date = ? WHERE order_id = ? AND user_id = ?',
+          [theStatus, order_completed_date, order_id, id],
+          (err, updateResults) => {
+            if (err) {
+              console.log(err);
+              return res.status(500).send("Server error");
+            }
+            // Even if affectedRows is 0 (because the status was already the same), we'll still return a success message.
+            return res.status(200).json({ order_id, status, numericStatus: theStatus });
+          }
+        );
+      }
+    );
+  };
+  
+  
 module.exports = { register, login, addAddress, userOrder, user, logout, address, userOrders, updateAddress, deleteAddress, updateUser, updateOrder };

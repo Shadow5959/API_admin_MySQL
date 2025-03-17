@@ -38,10 +38,10 @@ const addCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
     const { id, name}  = req.query;
     console.log(`received id: ${id}, name: ${name}`);
-    if ( !id || !name){
-        return res.status(400).send("Category id and name is required");
+    if ( !id){
+        return res.status(400).send("Category id is required");
     }
-    query = `DELETE FROM jeweltest.category WHERE cat_id = ? AND cat_name = ?`;
+    query = `UPDATE jeweltest.category SET category_active = 0 WHERE cat_id = ?`;
     db.query(query, [id, name], (err, results) => {
         if (err) {
             console.log(err);
@@ -113,7 +113,7 @@ const deleteSubcategory = async (req, res) => {
     if (!id) {
         return res.status(400).send("Subcategory id is required");
     }
-    const query = `DELETE FROM jeweltest.subcategory WHERE subcategory_id = ?`;
+    const query = `UPDATE jeweltest.subcategory SET subcategory_active = 0 WHERE subcategory_id = ?`;
     db.query(query, [id], (err, results) => {
         if (err) {
             console.log(err);
