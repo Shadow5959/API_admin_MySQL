@@ -1,73 +1,71 @@
 const db = require('../database.js');
+const { AppError } = require('../utils/errorHandler');
 
-
-
-
-const products = async (req, res) => {
-    const query = `SELECT * from jeweltest.product p
+const products = async (req, res, next) => {
+  const query = `SELECT * from jeweltest.product p
     LEFT JOIN jeweltest.variant v on p.product_id = v.product_id
     LEFT JOIN jeweltest.category c on p.cat_id = c.cat_id
     LEFT JOIN jeweltest.productimages pi on v.variant_id = pi.variant_id
     where p.product_active = 1 and v.variant_active = 1
     group by p.product_id, v.variant_id
-
-    `;
-    db.query(query, (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        const sortObjectKeys = (obj) => 
-            Object.keys(obj)
-                .sort() // Sort keys alphabetically
-                .reduce((sortedObj, key) => {
-                    sortedObj[key] = obj[key]; // Add sorted keys to a new object
-                    return sortedObj;
-                }, {});
-
-        const sortedResults = results.map(result => sortObjectKeys(result));
-        return res.status(200).json(sortedResults);
-    });
+  `;
+  db.query(query, (err, results) => {
+    if (err) {
+      return next(new AppError("Database error while fetching products", 500));
+    }
+    if (!results || results.length === 0) {
+      return next(new AppError("No products found", 404));
+    }
+    const sortObjectKeys = (obj) =>
+      Object.keys(obj)
+        .sort()
+        .reduce((sortedObj, key) => {
+          sortedObj[key] = obj[key];
+          return sortedObj;
+        }, {});
+    const sortedResults = results.map(result => sortObjectKeys(result));
+    return res.status(200).json(sortedResults);
+  });
 };
 
-const productVariants = async (req, res) => {
-    const { id } = req.query;
-    console.log(`received id: ${id}`);
-    if (!id) {
-        return res.status(400).send("Product id is required");
-    }
-    const query = `SELECT v.*, pi.image_url FROM jeweltest.variant v
+const productVariants = async (req, res, next) => {
+  const { id } = req.query;
+  console.log(`received id: ${id}`);
+  if (!id) {
+    return next(new AppError("Product id is required", 400));
+  }
+  const query = `SELECT v.*, pi.image_url FROM jeweltest.variant v
     LEFT JOIN jeweltest.productimages pi on v.variant_id = pi.variant_id
     WHERE v.product_id = ? And v.variant_active = 1`;
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        const sortObjectKeys = (obj) => 
-            Object.keys(obj)
-                .sort() // Sort keys alphabetically
-                .reduce((sortedObj, key) => {
-                    sortedObj[key] = obj[key]; // Add sorted keys to a new object
-                    return sortedObj;
-                }, {});
-
-        const sortedResults = results.map(result => sortObjectKeys(result));
-        return res.status(200).json(sortedResults);
-    });
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      return next(new AppError("Database error while fetching product variants", 500));
+    }
+    if (!results || results.length === 0) {
+      return next(new AppError("No variants found for this product", 404));
+    }
+    const sortObjectKeys = (obj) =>
+      Object.keys(obj)
+        .sort()
+        .reduce((sortedObj, key) => {
+          sortedObj[key] = obj[key];
+          return sortedObj;
+        }, {});
+    const sortedResults = results.map(result => sortObjectKeys(result));
+    return res.status(200).json(sortedResults);
+  });
 };
 
-const addProduct = async (req, res) => {
+const addProduct = async (req, res, next) => {
   const { name, description, category, type, subcategory, variants_count } = req.body;
-  
+
   if (!name || !category || !type || !subcategory || !variants_count) {
-    return res.status(400).json({ error: "Missing required fields" });
+    return next(new AppError("Missing required fields for product", 400));
   }
 
-  // Build variants array by reading each variant's fields from req.body
   const count = parseInt(variants_count, 10);
   if (isNaN(count) || count < 1) {
-    return res.status(400).json({ error: "Invalid variants_count" });
+    return next(new AppError("Invalid variants_count", 400));
   }
 
   const variantsArray = [];
@@ -80,21 +78,17 @@ const addProduct = async (req, res) => {
       material: req.body[`variant_${i}_material`],
     };
 
-    // Validate each variant
     if (!variant.variant_name || !variant.price || !variant.stock || !variant.size || !variant.material) {
-      return res.status(400).json({ error: `Missing required variant fields for variant ${i}` });
+      return next(new AppError(`Missing required variant fields for variant ${i}`, 400));
     }
     variantsArray.push(variant);
   }
 
-  // Process files from req.files:
   let productCoverFile = req.files.find(file => file.fieldname === 'product_cover');
-  
-  // Group variant images using field names like 'variant_images_0', 'variant_images_1', etc.
-  const variantImagesMap = {}; // key: variant index, value: array of files
+  const variantImagesMap = {};
   req.files.forEach(file => {
     if (file.fieldname.startsWith('variant_images_')) {
-      const index = file.fieldname.split('variant_images_')[1]; // get the index as string
+      const index = file.fieldname.split('variant_images_')[1];
       if (!variantImagesMap[index]) {
         variantImagesMap[index] = [];
       }
@@ -102,20 +96,15 @@ const addProduct = async (req, res) => {
     }
   });
 
-  // At this point:
-  // - productCoverFile contains the product cover image (if provided)
-  // - variantImagesMap holds the images for each variant by index
-
-  // Continue with your DB logic...
-  // Example: Insert product, then variants, and then use the variantImagesMap to insert images
-
   db.getConnection((err, connection) => {
-    if (err) return res.status(500).json({ error: "Server error getting connection" });
+    if (err) {
+      return next(new AppError("Error getting database connection", 500));
+    }
 
     connection.beginTransaction(err => {
       if (err) {
         connection.release();
-        return res.status(500).json({ error: "Server error starting transaction" });
+        return next(new AppError("Error starting transaction", 500));
       }
 
       const productData = {
@@ -132,7 +121,7 @@ const addProduct = async (req, res) => {
         if (err) {
           connection.rollback(() => {
             connection.release();
-            return res.status(500).json({ error: "Server error inserting product" });
+            return next(new AppError("Error inserting product", 500));
           });
         }
 
@@ -155,21 +144,17 @@ const addProduct = async (req, res) => {
           if (err) {
             connection.rollback(() => {
               connection.release();
-              return res.status(500).json({ error: "Failed to insert variants" });
+              return next(new AppError("Error inserting variants", 500));
             });
           }
 
-          // Bulk insert variant images if provided
           const imageQuery = 'INSERT INTO productimages (variant_id, image_url) VALUES ?';
           const variantImages = [];
 
           variantsArray.forEach((variant, index) => {
-            // Calculate variant ID assuming sequential insertion
             const variantId = variantResult.insertId + index;
             if (variantImagesMap[index]) {
-              let images = variantImagesMap[index];
-              // Limit to a maximum of 4 images per variant
-              images = images.slice(0, 4);
+              let images = variantImagesMap[index].slice(0, 4);
               images.forEach(image => {
                 variantImages.push([variantId, image.filename]);
               });
@@ -181,14 +166,14 @@ const addProduct = async (req, res) => {
               if (err) {
                 connection.rollback(() => {
                   connection.release();
-                  return res.status(500).json({ error: "Failed to insert variant images" });
+                  return next(new AppError("Error inserting variant images", 500));
                 });
               }
               connection.commit(err => {
                 if (err) {
                   connection.rollback(() => {
                     connection.release();
-                    return res.status(500).json({ error: "Failed to commit transaction" });
+                    return next(new AppError("Error committing transaction", 500));
                   });
                 }
                 connection.release();
@@ -204,7 +189,7 @@ const addProduct = async (req, res) => {
               if (err) {
                 connection.rollback(() => {
                   connection.release();
-                  return res.status(500).json({ error: "Failed to commit transaction" });
+                  return next(new AppError("Error committing transaction", 500));
                 });
               }
               connection.release();
@@ -221,28 +206,20 @@ const addProduct = async (req, res) => {
   });
 };
 
-
-const updateProduct = async (req, res) => {
+const updateProduct = async (req, res, next) => {
   let connection;
   try {
-    // Get product id from query (e.g., /updateProduct?id=37)
     const productId = req.query.id;
     if (!productId) {
-      return res.status(400).json({ error: "Product id is required" });
+      return next(new AppError("Product id is required", 400));
     }
 
-    // Extract product fields from req.body
-    // (If a field is not provided, we want to use the existing value.)
     const { product_name, product_desc, category, type, subcategory, variants } = req.body;
-    
-    // Get a DB connection and start a transaction
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
 
-    // Use an empty array if no files were uploaded
     const files = req.files || [];
 
-    // First, fetch the current product record
     const [currentProducts] = await connection.query(
       'SELECT * FROM product WHERE product_id = ?',
       [productId]
@@ -250,14 +227,12 @@ const updateProduct = async (req, res) => {
     if (currentProducts.length === 0) {
       await connection.rollback();
       connection.release();
-      return res.status(404).json({ error: "Product not found" });
+      return next(new AppError("Product not found", 404));
     }
     const currentProduct = currentProducts[0];
 
-    // Get new product cover file if provided (field name: "product_cover")
     const productCoverFile = files.find(file => file.fieldname === 'product_cover');
 
-    // Build the product update data using provided values or existing values if not provided
     const productUpdateData = {
       product_name: product_name !== undefined ? product_name : currentProduct.product_name,
       product_desc: product_desc !== undefined ? product_desc : currentProduct.product_desc,
@@ -270,14 +245,11 @@ const updateProduct = async (req, res) => {
       productUpdateData.product_cover = productCoverFile.filename;
     }
 
-    // Update the product record
     await connection.query('UPDATE product SET ? WHERE product_id = ?', [
       productUpdateData,
       productId
     ]);
 
-    // Parse the variants JSON string.
-    // This should be an array of variant objects.
     let parsedVariants = [];
     if (variants) {
       try {
@@ -285,16 +257,13 @@ const updateProduct = async (req, res) => {
       } catch (e) {
         await connection.rollback();
         connection.release();
-        return res.status(400).json({ error: "Invalid variants JSON" });
+        return next(new AppError("Invalid variants JSON", 400));
       }
     }
 
-    // --- Process Existing Variants (Update) ---
-    // For each variant that includes an existing variant_id, update its data
     for (let i = 0; i < parsedVariants.length; i++) {
       const variant = parsedVariants[i];
       if (variant.variant_id) {
-        // Update the variant record
         const updateVariantData = {
           variant_name: variant.variant_name,
           price: variant.price,
@@ -307,14 +276,9 @@ const updateProduct = async (req, res) => {
           variant.variant_id
         ]);
 
-        // If new images for this variant are provided,
-        // files for an existing variant must be sent with field name: variant_images_<variant_id>
         const variantImagesFiles = files.filter(file => file.fieldname === `variant_images_${variant.variant_id}`);
         if (variantImagesFiles.length > 0) {
-          // Optionally, delete existing images first
           await connection.query('DELETE FROM productimages WHERE variant_id = ?', [variant.variant_id]);
-
-          // Limit to a maximum of 4 images per variant
           const limitedFiles = variantImagesFiles.slice(0, 4);
           const imagesValues = limitedFiles.map(file => [variant.variant_id, file.filename]);
           if (imagesValues.length > 0) {
@@ -327,16 +291,13 @@ const updateProduct = async (req, res) => {
       }
     }
 
-    // --- Process New Variants (Insert) ---
-    // For each variant object that does not include a variant_id, insert it as a new variant
     for (let i = 0; i < parsedVariants.length; i++) {
       const variant = parsedVariants[i];
       if (!variant.variant_id) {
-        // Insert new variant record
         const insertVariantData = {
           variant_name: variant.variant_name,
           product_id: productId,
-          product_name: productUpdateData.product_name, // Use updated product name
+          product_name: productUpdateData.product_name,
           price: variant.price,
           stock: variant.stock,
           size: variant.size,
@@ -345,8 +306,6 @@ const updateProduct = async (req, res) => {
         const [result] = await connection.query('INSERT INTO variant SET ?', [insertVariantData]);
         const newVariantId = result.insertId;
 
-        // For new variants, images are expected with field name: variant_images_new_<index>
-        // where the index corresponds to the position in the JSON array for new variants.
         const newVariantImagesFiles = files.filter(file => file.fieldname === `variant_images_new_${i}`);
         if (newVariantImagesFiles.length > 0) {
           const limitedFiles = newVariantImagesFiles.slice(0, 4);
@@ -361,7 +320,6 @@ const updateProduct = async (req, res) => {
       }
     }
 
-    // Commit transaction and release connection
     await connection.commit();
     connection.release();
     return res.status(200).json({ message: 'Product, variants, and images updated successfully' });
@@ -371,78 +329,74 @@ const updateProduct = async (req, res) => {
       await connection.rollback();
       connection.release();
     }
-    return res.status(500).json({ error: 'Server error' });
+    return next(new AppError("Server error during product update", 500));
   }
 };
 
-const deleteProduct = async (req, res) => {
-    const { id } = req.query;
-    console.log(`received id: ${id}`);
-    if (!id) {
-        return res.status(400).send("Product id is required");
-    }
-    const query = `UPDATE jeweltest.product p
+const deleteProduct = async (req, res, next) => {
+  const { id } = req.query;
+  console.log(`received id: ${id}`);
+  if (!id) {
+    return next(new AppError("Product id is required", 400));
+  }
+  const query = `UPDATE jeweltest.product p
              LEFT JOIN jeweltest.variant v ON p.product_id = v.product_id
              SET p.product_active = 0, v.variant_active = 0
              WHERE p.product_id = ?`;
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        return res.status(200).json({ id });
-    });
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      return next(new AppError("Database error while deleting product", 500));
+    }
+    return res.status(200).json({ id });
+  });
 };
 
-const updateVariant = async (req, res) => {
-    const { id, name, price, stock, size, material } = req.body;
-    console.log(`received data id: ${id}, name: ${name}, price: ${price}, stock: ${stock}, size: ${size}, material: ${material}`);
-    if (!id) {
-        return res.status(400).send("Variant id is required");
+const updateVariant = async (req, res, next) => {
+  const { id, name, price, stock, size, material } = req.body;
+  console.log(`received data id: ${id}, name: ${name}, price: ${price}, stock: ${stock}, size: ${size}, material: ${material}`);
+  if (!id) {
+    return next(new AppError("Variant id is required", 400));
+  }
+  db.query('SELECT variant_name FROM jeweltest.variant WHERE variant_id = ?', [id], (err, results) => {
+    if (err) {
+      return next(new AppError("Database error while fetching variant", 500));
     }
-    db.query('SELECT variant_name FROM jeweltest.variant WHERE variant_id = ?', [id], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        if (results.length === 0) {
-            return res.status(404).send("Variant not found");
-        }
-        const oldName = results[0].variant_name;
-        const updatedName = name || oldName;
+    if (results.length === 0) {
+      return next(new AppError("Variant not found", 404));
+    }
+    const oldName = results[0].variant_name;
+    const updatedName = name || oldName;
 
-        db.query('UPDATE variant SET variant_name = ?, price = ?, stock = ?, size = ?, material = ? WHERE variant_id = ?', [updatedName, price, stock, size, material, id], (err, results) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).send("Server error");
-            }
-            return res.status(200).json({ id, name: updatedName, price, stock, size, material });
-        });
+    db.query('UPDATE variant SET variant_name = ?, price = ?, stock = ?, size = ?, material = ? WHERE variant_id = ?', [updatedName, price, stock, size, material, id], (err, results) => {
+      if (err) {
+        return next(new AppError("Database error while updating variant", 500));
+      }
+      return res.status(200).json({ id, name: updatedName, price, stock, size, material });
     });
+  });
 };
 
-const deleteVariant = async (req, res) => {
-    const { id } = req.query;
-    console.log(`received id: ${id}`);
-    if (!id) {
-        return res.status(400).send("Variant id is required");
+const deleteVariant = async (req, res, next) => {
+  const { id } = req.query;
+  console.log(`received id: ${id}`);
+  if (!id) {
+    return next(new AppError("Variant id is required", 400));
+  }
+  const query = `UPDATE jeweltest.variant SET variant_active = 0 WHERE variant_id = ?`;
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      return next(new AppError("Database error while deleting variant", 500));
     }
-    const query = ` UPDATE jeweltest.variant SET variant_active = 0 WHERE variant_id = ?`;
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).send("Server error");
-        }
-        return res.status(200).json({ id });
-    });
+    return res.status(200).json({ id });
+  });
 };
 
 module.exports = {
-    products,
-    productVariants,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    updateVariant,
-    deleteVariant
+  products,
+  productVariants,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  updateVariant,
+  deleteVariant
 };

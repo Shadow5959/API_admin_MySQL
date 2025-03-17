@@ -1,0 +1,15 @@
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categories\",\"status\":\"200\",\"responseTime\":\"9.642\"}","timestamp":"2025-03-17T06:28:56.162Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categorie\",\"status\":\"500\",\"responseTime\":\"9.288\"}","timestamp":"2025-03-17T06:44:23.347Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categories\",\"status\":\"500\",\"responseTime\":\"3.805\"}","timestamp":"2025-03-17T06:44:33.125Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categories\",\"status\":\"500\",\"responseTime\":\"10.106\"}","timestamp":"2025-03-17T06:45:30.245Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categories\",\"status\":\"404\",\"responseTime\":\"7.185\"}","timestamp":"2025-03-17T06:47:01.103Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/currency\",\"status\":\"404\",\"responseTime\":\"4.162\"}","timestamp":"2025-03-17T06:48:36.983Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/currency\",\"status\":\"404\",\"responseTime\":\"9.627\"}","timestamp":"2025-03-17T06:49:39.430Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/currency\",\"status\":\"404\",\"responseTime\":\"7.775\"}","timestamp":"2025-03-17T06:54:36.663Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/currency\",\"status\":\"200\",\"responseTime\":\"17.571\"}","timestamp":"2025-03-17T06:55:50.472Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"DELETE\",\"url\":\"/deletecurrency?id=10&name=Euro\",\"status\":\"200\",\"responseTime\":\"35.447\"}","timestamp":"2025-03-17T06:56:11.210Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"DELETE\",\"url\":\"/deletecurrency?id=10&name=Euro\",\"status\":\"200\",\"responseTime\":\"34.078\"}","timestamp":"2025-03-17T06:57:56.317Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"DELETE\",\"url\":\"/deletecurrency?id=10\",\"status\":\"200\",\"responseTime\":\"18.076\"}","timestamp":"2025-03-17T06:58:33.843Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"DELETE\",\"url\":\"/deletecurrency?id=10\",\"status\":\"404\",\"responseTime\":\"23.768\"}","timestamp":"2025-03-17T07:00:15.106Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"DELETE\",\"url\":\"/deletecurrency?id=10\",\"status\":\"404\",\"responseTime\":\"33.265\"}","timestamp":"2025-03-17T07:19:49.744Z"}
+{"level":"\u001b[32minfo\u001b[39m","message":"{\"method\":\"GET\",\"url\":\"/categories\",\"status\":\"200\",\"responseTime\":\"16.442\"}","timestamp":"2025-03-17T08:08:39.614Z"}

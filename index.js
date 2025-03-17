@@ -1,16 +1,19 @@
 const app = require('./server.js');
-const db = require('./database.js');
+
 const dotenv = require('dotenv');
 dotenv.config();
 const userRoutes = require('./routes/user.js');
 const productRoutes = require('./routes/products.js');
-
-
+const { AppError, globalErrorHandler } = require("./utils/errorHandler.js");
 
 app.use('/', userRoutes);
 app.use('/', productRoutes);
-
-   
+app.all('*', (req, res, next) => {
+    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  });
+  
+  
+app.use(globalErrorHandler);
 
 
     
