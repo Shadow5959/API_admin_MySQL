@@ -17,8 +17,6 @@ JewelTest is a Node.js-based web application designed to manage users, products,
 - [Scripts](#scripts)
 - [Technologies Used](#technologies-used)
 - [Contributing](#contributing)
-- [License](#license)
-
 ---
 
 ## Features
@@ -27,6 +25,7 @@ JewelTest is a Node.js-based web application designed to manage users, products,
 - **Product Management**: APIs to create, update, delete, and fetch products.
 - **Category Management**: Manage product categories for better organization.
 - **Currency Management**: Handle multiple currencies for product pricing.
+- **Order Management**: APIs to manage user orders, including updates and status tracking.
 - **Static File Serving**: Serve static assets like images from the `public` directory.
 - **Logging**: Detailed request logging using `morgan` and custom loggers.
 - **Error Handling**: Centralized error handling for consistent API responses.
@@ -37,12 +36,12 @@ JewelTest is a Node.js-based web application designed to manage users, products,
 ## Use Cases
 
 1. **E-commerce Backend**:
-   - Manage users, products, and categories.
+   - Manage users, products, categories, and orders.
    - Serve product images and other static assets.
    - Handle user authentication and authorization.
 
 2. **API for Mobile or Web Applications**:
-   - Provide a backend API for mobile or web apps to interact with product and user data.
+   - Provide a backend API for mobile or web apps to interact with product, user, and order data.
 
 3. **Learning Project**:
    - A great starting point for developers learning Node.js, Express, and backend development.
@@ -72,6 +71,7 @@ dummyData/
     user_passwords.json
 middlewares/
     auth.js
+    cacheMiddleware.js
 public/
     images/
 routes/
@@ -82,15 +82,16 @@ service/
 utils/
     errorHandler.js
     logger.js
+    redisClient.js
 ```
 
 - **controllers/**: Contains logic for handling requests for categories, products, users, and currencies.
 - **dummyData/**: Includes dummy data and scripts for populating the database.
-- **middlewares/**: Contains middleware for authentication and other reusable logic.
+- **middlewares/**: Contains middleware for authentication, caching, and other reusable logic.
 - **public/**: Static assets like images.
 - **routes/**: Defines API routes for products and users.
 - **service/**: Contains reusable service logic, such as authentication.
-- **utils/**: Utility functions for error handling and logging.
+- **utils/**: Utility functions for error handling, logging, and Redis caching.
 
 ---
 
@@ -135,7 +136,10 @@ The following environment variables are required:
 
 - `PORT`: The port on which the server will run.
 - `DB_URL`: The database connection string.
-- `JWT`: Secret key for JWT authentication.
+- `JWT_SECRET`: Secret key for JWT authentication.
+- `JWT_EXPIRES_IN`: Expiration time for JWT tokens.
+- `JWT_COOKIE_EXPIRES`: Expiration time for JWT cookies (in days).
+- `REDIS_URL`: Redis connection string for caching.
 
 ---
 
@@ -167,6 +171,7 @@ The following environment variables are required:
 - **dotenv**: Environment variable management.
 - **body-parser**: Middleware for parsing request bodies.
 - **cookie-parser**: Middleware for parsing cookies.
+- **Redis**: In-memory data structure store for caching.
 
 ---
 
