@@ -3,7 +3,7 @@ const router = express.Router();
 const { products, productVariants, addProduct, updateProduct, deleteProduct, updateVariant, deleteVariant } = require('../controllers/products');
 const { categories, addCategory, deleteCategory, subcategory, addSubcategory, updateSubcategory, deleteSubcategory, types } = require('../controllers/categories');
 const { currency, addCurrency, updateCurrency, deleteCurrency } = require('../controllers/currency');
-
+const cacheMiddleware = require('../middlewares/cacheMiddleware');
 const fs = require('fs');
 const multer = require('multer');
 
@@ -26,12 +26,12 @@ const upload = multer({ storage: storage }).any();
 
 
 
-router.get('/products', products);
-router.get('/categories', categories);
-router.get('/currency', currency);
-router.get('/productvariants', productVariants);
-router.get('/subcategory', subcategory);
-router.get('/types', types);
+router.get('/products',cacheMiddleware, products);
+router.get('/categories', cacheMiddleware,categories);
+router.get('/currency', cacheMiddleware, currency);
+router.get('/productvariants', cacheMiddleware,productVariants);
+router.get('/subcategory', cacheMiddleware,subcategory);
+router.get('/types', cacheMiddleware,types);
 
 
 router.post('/addProduct', upload, addProduct);
