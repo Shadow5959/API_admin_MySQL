@@ -62,10 +62,9 @@ const register = async (req, res, next) => {
               { expiresIn: process.env.JWT_EXPIRES_IN }
             );
             console.log(`The token is: ${token}`);
-            const cookieOptions = {
-              expires: new Date(Date.now() + parseInt(process.env.JWT_COOKIE_EXPIRES) * 24 * 60 * 60 * 1000)
-            };
-            res.cookie('jwt', token, cookieOptions);
+            res.setHeader('Authorization', `Bearer ${token}`);
+            res.setHeader('User-Id', userId);
+            res.setHeader('User-Email', email);
 
             db.query(
               'UPDATE users SET user_token = ? WHERE user_id = ?',
@@ -109,10 +108,10 @@ const login = async (req, res, next) => {
     }
     const token = jwt.sign({ id: user.user_id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
     console.log(`The token is: ${token}`);
-    const cookieOptions = {
-      expires: new Date(Date.now() + parseInt(process.env.JWT_COOKIE_EXPIRES) * 24 * 60 * 60 * 1000)
-    };
-    res.cookie('jwt', token, cookieOptions);
+    
+    res.setHeader('Authorization', `Bearer ${token}`);
+    res.setHeader('User-Id', user.user_id);
+    res.setHeader('User-Email', user.user_email);
     db.query('UPDATE users SET user_token = ? WHERE user_id = ?', [token, user.user_id], (err) => {
       if (err) {
         return next(new AppError("Database error while updating user token", 500));

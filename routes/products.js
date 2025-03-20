@@ -6,6 +6,7 @@ const { currency, addCurrency, updateCurrency, deleteCurrency } = require('../co
 const cacheMiddleware = require('../middlewares/cacheMiddleware');
 const fs = require('fs');
 const multer = require('multer');
+const { restrictToLoggedinUserOnly } = require('../middlewares/auth.js');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -26,29 +27,29 @@ const upload = multer({ storage: storage }).any();
 
 
 
-router.get('/products',cacheMiddleware, products);
-router.get('/categories', cacheMiddleware,categories);
-router.get('/currency', cacheMiddleware, currency);
-router.get('/productvariants', cacheMiddleware,productVariants);
-router.get('/subcategory', cacheMiddleware,subcategory);
-router.get('/types', cacheMiddleware,types);
+router.get('/products',restrictToLoggedinUserOnly,cacheMiddleware, products);
+router.get('/categories',restrictToLoggedinUserOnly,cacheMiddleware,categories);
+router.get('/currency', restrictToLoggedinUserOnly,cacheMiddleware, currency);
+router.get('/productvariants', restrictToLoggedinUserOnly,cacheMiddleware,productVariants);
+router.get('/subcategory', restrictToLoggedinUserOnly,cacheMiddleware,subcategory);
+router.get('/types', restrictToLoggedinUserOnly,cacheMiddleware,types);
 
 
-router.post('/addProduct', upload, addProduct);
-router.post('/addcategory', addCategory);
-router.post('/addcurrency', addCurrency);
-router.post('/addsucategory', addSubcategory);
+router.post('/addProduct',restrictToLoggedinUserOnly, upload, addProduct);
+router.post('/addcategory', restrictToLoggedinUserOnly,addCategory);
+router.post('/addcurrency', restrictToLoggedinUserOnly,addCurrency);
+router.post('/addsucategory', restrictToLoggedinUserOnly,addSubcategory);
 
-router.put('/updateproduct', upload, updateProduct);
-router.put('/updatecurrency', updateCurrency);
-router.put('/updatesubcategory', updateSubcategory);
-router.put('/updatevariant', updateVariant);
+router.put('/updateproduct', restrictToLoggedinUserOnly,upload, updateProduct);
+router.put('/updatecurrency', restrictToLoggedinUserOnly,updateCurrency);
+router.put('/updatesubcategory', restrictToLoggedinUserOnly,updateSubcategory);
+router.put('/updatevariant', restrictToLoggedinUserOnly,updateVariant);
 
-router.delete('/deleteproduct', deleteProduct);
-router.delete('/deletecategory', deleteCategory);
-router.delete('/deletecurrency', deleteCurrency);
-router.delete('/deletesubcategory', deleteSubcategory);
-router.delete('/deletevariant', deleteVariant);
+router.delete('/deleteproduct', restrictToLoggedinUserOnly,deleteProduct);
+router.delete('/deletecategory', restrictToLoggedinUserOnly,deleteCategory);
+router.delete('/deletecurrency', restrictToLoggedinUserOnly,deleteCurrency);
+router.delete('/deletesubcategory', restrictToLoggedinUserOnly,deleteSubcategory);
+router.delete('/deletevariant', restrictToLoggedinUserOnly,deleteVariant);
 
 module.exports = router;
 

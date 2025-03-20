@@ -1,23 +1,28 @@
-const {getUser} = require('../../TEST PROJECT/service/auth.js');
+const { getUser } = require('../service/auth.js');
 
 
 
 async function restrictToLoggedinUserOnly(req, res, next) {
-    console.log(req);
-    const userUid = req.cookies?.uid;
-  if (!userUid) {
-    return res.redirect('/login');
-    
-    }
-    const user = await getUser(userUid);
+
+
+  try {
+    const user = await getUser(req);
+
+
     if (!user) {
-        return res.redirect('/login');
+
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+
+    next();
+  } catch (error) {
+    console.error("🚨 Authentication error:", error);
+    return res.status(500).json({ message: 'Server error' });
   }
-  req.user = user;
-  next();
-    
 }
 
+
 module.exports = {
-    restrictToLoggedinUserOnly,
+  restrictToLoggedinUserOnly,
 };
